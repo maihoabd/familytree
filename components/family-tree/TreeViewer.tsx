@@ -87,6 +87,194 @@ export default function TreeViewer({ initialMembers }: TreeViewerProps) {
     setMembers(initialMembers);
   }, [initialMembers]);
 
+  // Chế độ xem: "pedigree" (Phả hệ ngược FamilySearch) hoặc "descendants" (Cây truyền thống)
+  const [viewMode, setViewMode] = useState<"pedigree" | "descendants">("pedigree");
+  const [pedigreeRootId, setPedigreeRootId] = useState<string | null>(null);
+
+  // Thiết lập mặc định pedigreeRootId là Phạm Đăng Hải khi danh sách được tải
+  useEffect(() => {
+    if (members.length > 0 && !pedigreeRootId) {
+      const target = members.find(m => m.fullName === "Phạm Đăng Hải") || members[0];
+      setPedigreeRootId(target?.id || null);
+    }
+  }, [members, pedigreeRootId]);
+
+  // Hàm tính toán cấu trúc tọa độ cây phả hệ ngược (Pedigree Mode)
+  const getPedigreeLayout = () => {
+    if (!pedigreeRootId) return { nodes: [], lines: [] };
+    const root = members.find(m => m.id === pedigreeRootId);
+    if (!root) return { nodes: [], lines: [] };
+
+    const nodes: Array<{ member: Member; x: number; y: number; role: string; hasLeftArrow?: boolean }> = [];
+    const lines: Array<{ x1: number; y1: number; x2: number; y2: number; color?: string }> = [];
+
+    const findMember = (id: string | null): Member | null => (id ? members.find(m => m.id === id) : null) || null;
+
+    // Đời 1 (Dưới cùng: y = 500)
+    const rootX = 400;
+    const rootY = 500;
+    nodes.push({ 
+      member: root, 
+      x: rootX, 
+      y: rootY, 
+      role: "root", 
+      hasLeftArrow: !!(root.fatherId || root.motherId) 
+    });
+
+    const spouse = findSpouse(root.id);
+    const spouseX = 580;
+    const spouseY = 500;
+    
+    if (spouse) {
+      nodes.push({ 
+        member: spouse, 
+        x: spouseX, 
+        y: spouseY, 
+        role: "spouse", 
+        hasLeftArrow: !!(spouse.fatherId || spouse.motherId) 
+      });
+      
+      // Đường nối hôn phối
+      lines.push({ x1: rootX, y1: rootY, x2: spouseX, y2: spouseY, color: "#ffd700" });
+
+      // Lấy anh em ruột của người phối ngẫu (ví dụ: em trai Nguyễn Minh Đức)
+      const spouseSiblings = members.filter(m => 
+        m.id !== spouse.id && 
+        ((spouse.fatherId && m.fatherId === spouse.fatherId) || (spouse.motherId && m.motherId === spouse.motherId))
+      );
+      spouseSiblings.forEach((sib, idx) => {
+        nodes.push({ 
+          member: sib, 
+          x: spouseX + 180 * (idx + 1), 
+          y: spouseY, 
+          role: "sibling", 
+          hasLeftArrow: !!(sib.fatherId || sib.motherId) 
+        });
+      });
+    }
+
+    // Đời 2 (Giữa: y = 300)
+    const fatherR = findMember(root.fatherId);
+    const motherR = findMember(root.motherId);
+    const fatherX = 310;
+    const motherX = 490;
+    const parentsY = 300;
+
+    if (fatherR) {
+      nodes.push({ 
+        member: fatherR, 
+        x: fatherX, 
+        y: parentsY, 
+        role: "father", 
+        hasLeftArrow: !!(fatherR.fatherId || fatherR.motherId) 
+      });
+      lines.push({ x1: fatherX, y1: parentsY, x2: rootX, y2: rootY });
+    }
+    if (motherR) {
+      nodes.push({ 
+        member: motherR, 
+        x: motherX, 
+        y: parentsY, 
+        role: "mother", 
+        hasLeftArrow: !!(motherR.fatherId || motherR.motherId) 
+      });
+      lines.push({ x1: motherX, y1: parentsY, x2: rootX, y2: rootY });
+    }
+
+    let fatherS: Member | null = null;
+    let motherS: Member | null = null;
+    const fatherSX = 670;
+    const motherSX = 850;
+
+    if (spouse) {
+      fatherS = findMember(spouse.fatherId);
+      motherS = findMember(spouse.motherId);
+
+      if (fatherS) {
+        nodes.push({ 
+          member: fatherS, 
+          x: fatherSX, 
+          y: parentsY, 
+          role: "father", 
+          hasLeftArrow: !!(fatherS.fatherId || fatherS.motherId) 
+        });
+        lines.push({ x1: fatherSX, y1: parentsY, x2: spouseX, y2: spouseY });
+      }
+      if (motherS) {
+        nodes.push({ 
+          member: motherS, 
+          x: motherSX, 
+          y: parentsY, 
+          role: "mother", 
+          hasLeftArrow: !!(motherS.fatherId || motherS.motherId) 
+        });
+        lines.push({ x1: motherSX, y1: parentsY, x2: spouseX, y2: spouseY });
+      }
+    }
+
+    // Đời 3 (Trùm trên: y = 100)
+    const gpY = 100;
+    // Ông bà nội ngoại của chồng
+    if (fatherR) {
+      const gF = findMember(fatherR.fatherId);
+      const gM = findMember(fatherR.motherId);
+      if (gF) {
+        nodes.push({ member: gF, x: 220, y: gpY, role: "grandparent", hasLeftArrow: !!(gF.fatherId || gF.motherId) });
+        lines.push({ x1: 220, y1: gpY, x2: fatherX, y2: parentsY });
+      }
+      if (gM) {
+        nodes.push({ member: gM, x: 380, y: gpY, role: "grandparent", hasLeftArrow: !!(gM.fatherId || gM.motherId) });
+        lines.push({ x1: 380, y1: gpY, x2: fatherX, y2: parentsY });
+      }
+    }
+    if (motherR) {
+      const gF = findMember(motherR.fatherId);
+      const gM = findMember(motherR.motherId);
+      if (gF) {
+        nodes.push({ member: gF, x: 540, y: gpY, role: "grandparent", hasLeftArrow: !!(gF.fatherId || gF.motherId) });
+        lines.push({ x1: 540, y1: gpY, x2: motherX, y2: parentsY });
+      }
+      if (gM) {
+        nodes.push({ member: gM, x: 700, y: gpY, role: "grandparent", hasLeftArrow: !!(gM.fatherId || gM.motherId) });
+        lines.push({ x1: 700, y1: gpY, x2: motherX, y2: parentsY });
+      }
+    }
+
+    // Ông bà nội ngoại của vợ
+    if (fatherS) {
+      const gF = findMember(fatherS.fatherId);
+      const gM = findMember(fatherS.motherId);
+      if (gF) {
+        nodes.push({ member: gF, x: 860, y: gpY, role: "grandparent", hasLeftArrow: !!(gF.fatherId || gF.motherId) });
+        lines.push({ x1: 860, y1: gpY, x2: fatherSX, y2: parentsY });
+      }
+      if (gM) {
+        nodes.push({ member: gM, x: 1020, y: gpY, role: "grandparent", hasLeftArrow: !!(gM.fatherId || gM.motherId) });
+        lines.push({ x1: 1020, y1: gpY, x2: fatherSX, y2: parentsY });
+      }
+    }
+    if (motherS) {
+      const gF = findMember(motherS.fatherId);
+      const gM = findMember(motherS.motherId);
+      if (gF) {
+        nodes.push({ member: gF, x: 1180, y: gpY, role: "grandparent", hasLeftArrow: !!(gF.fatherId || gF.motherId) });
+        lines.push({ x1: 1180, y1: gpY, x2: motherSX, y2: parentsY });
+      }
+      if (gM) {
+        nodes.push({ member: gM, x: 1340, y: gpY, role: "grandparent", hasLeftArrow: !!(gM.fatherId || gM.motherId) });
+        lines.push({ x1: 1340, y1: gpY, x2: motherSX, y2: parentsY });
+      }
+    }
+
+    return { nodes, lines };
+  };
+
+  // Hàm kiểm tra so khớp tìm kiếm ở cấp component để gọi từ nhiều luồng
+  const isSearchMatch = (m: Member) => {
+    if (!searchQuery) return false;
+    return m.fullName.toLowerCase().includes(searchQuery.toLowerCase());
+  };
+
   // Tìm vợ/chồng của 1 thành viên
   const findSpouse = (memberId: string): Member | undefined => {
     const member = members.find(m => m.id === memberId);
@@ -498,11 +686,6 @@ export default function TreeViewer({ initialMembers }: TreeViewerProps) {
   // Vẽ một node (Đơn thân hoặc Cặp đôi)
   const renderNode = (node: LayoutNode) => {
     const isCouple = !!node.spouse;
-    const isSearchMatch = (m: Member) => {
-      if (!searchQuery) return false;
-      return m.fullName.toLowerCase().includes(searchQuery.toLowerCase());
-    };
-
     const hasChildren = node.children.length > 0;
     const isCollapsed = collapsedNodes.has(node.id);
 
@@ -572,7 +755,7 @@ export default function TreeViewer({ initialMembers }: TreeViewerProps) {
   };
 
   // Vẽ thẻ thành viên cụ thể
-  const renderMemberCard = (member: Member, x: number, y: number, isHighlighted: boolean) => {
+  const renderMemberCard = (member: Member, x: number, y: number, isHighlighted: boolean, hasLeftArrow?: boolean) => {
     const isMale = member.gender === "MALE";
     const borderClass = isHighlighted 
       ? "stroke-[#ffd700] stroke-[3.5] filter drop-shadow-[0_0_8px_rgba(255,215,0,0.6)]" 
@@ -653,6 +836,22 @@ export default function TreeViewer({ initialMembers }: TreeViewerProps) {
             </g>
           )}
         </g>
+
+        {/* Nút mũi tên chuyển hướng phả hệ ngược */}
+        {viewMode === "pedigree" && hasLeftArrow && (
+          <g 
+            transform={`translate(-18, ${cardHeight / 2 - 9})`}
+            onClick={(e) => {
+              e.stopPropagation();
+              setPedigreeRootId(member.id);
+            }}
+            className="cursor-pointer hover:scale-110 transition-transform"
+          >
+            <title>Đưa thành viên này làm gốc phả hệ</title>
+            <circle cx="9" cy="9" r="8" fill="#ffd700" stroke="#8c1d1d" strokeWidth="1.5" />
+            <text x="9" y="12" textAnchor="middle" fill="#8c1d1d" className="text-[10px] font-bold font-mono">{"<"}</text>
+          </g>
+        )}
       </g>
     );
   };
@@ -689,6 +888,30 @@ export default function TreeViewer({ initialMembers }: TreeViewerProps) {
           />
           <button type="submit" className="hidden" />
         </form>
+
+        {/* Nút chuyển đổi Chế độ xem */}
+        <div className="bg-stone-800/90 border border-stone-700/60 rounded-xl p-0.5 shadow-lg backdrop-blur-sm flex">
+          <button
+            onClick={() => setViewMode("pedigree")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              viewMode === "pedigree" 
+                ? "bg-[#8c1d1d] text-[#ffd700]" 
+                : "text-stone-400 hover:text-white"
+            }`}
+          >
+            Phả Hệ (FamilySearch)
+          </button>
+          <button
+            onClick={() => setViewMode("descendants")}
+            className={`px-3 py-1.5 rounded-lg text-xs font-bold transition-all ${
+              viewMode === "descendants" 
+                ? "bg-[#8c1d1d] text-[#ffd700]" 
+                : "text-stone-400 hover:text-white"
+            }`}
+          >
+            Cây Truyền Thống
+          </button>
+        </div>
 
         <button 
           onClick={fitScreen}
@@ -781,19 +1004,71 @@ export default function TreeViewer({ initialMembers }: TreeViewerProps) {
               transformOrigin: "0 0"
             }}
           >
-            {/* 1. Vẽ các đường nối trước (ở dưới) */}
-            {layoutRoots.map(root => renderConnections(root))}
+            {viewMode === "pedigree" ? (
+              <>
+                {/* 1. Vẽ các đường kết nối chế độ phả hệ */}
+                {getPedigreeLayout().lines.map((line, idx) => {
+                  return (
+                    <line
+                      key={`pedigree-line-${idx}`}
+                      x1={line.x1}
+                      y1={line.y1}
+                      x2={line.x2}
+                      y2={line.y2}
+                      stroke={line.color || "#8c1d1d"}
+                      strokeWidth="2.5"
+                      className="transition-opacity duration-500"
+                    />
+                  );
+                })}
 
-            {/* 2. Vẽ các Thẻ thành viên (ở trên) */}
-            {layoutRoots.map(root => {
-              const nodes: React.JSX.Element[] = [];
-              const traverse = (n: LayoutNode) => {
-                nodes.push(renderNode(n));
-                n.children.forEach(traverse);
-              };
-              traverse(root);
-              return nodes;
-            })}
+                {/* 2. Vẽ các cặp trái tim kết nối vợ chồng trong phả hệ */}
+                {getPedigreeLayout().nodes.filter(n => n.role === "root").map((n, idx) => {
+                  const spouseNode = getPedigreeLayout().nodes.find(sn => sn.role === "spouse");
+                  if (!spouseNode) return null;
+                  const heartX = (n.x + spouseNode.x) / 2;
+                  const heartY = n.y;
+                  return (
+                    <g key={`pedigree-marriage-heart-${idx}`}>
+                      <circle cx={heartX} cy={heartY} r="14" fill="#ffd700" stroke="#8c1d1d" strokeWidth="2" />
+                      <Heart 
+                        className="h-4.5 w-4.5 text-[#8c1d1d] fill-[#8c1d1d]" 
+                        style={{ transform: `translate(${heartX - 9}px, ${heartY - 9}px)` }} 
+                      />
+                    </g>
+                  );
+                })}
+
+                {/* 3. Vẽ các thẻ thành viên chế độ phả hệ */}
+                {getPedigreeLayout().nodes.map((node) => (
+                  <g key={`pedigree-card-${node.member.id}`}>
+                    {renderMemberCard(
+                      node.member,
+                      node.x,
+                      node.y,
+                      isSearchMatch(node.member),
+                      node.hasLeftArrow
+                    )}
+                  </g>
+                ))}
+              </>
+            ) : (
+              <>
+                {/* 1. Vẽ các đường nối truyền thống */}
+                {layoutRoots.map(root => renderConnections(root))}
+
+                {/* 2. Vẽ các Thẻ thành viên truyền thống */}
+                {layoutRoots.map(root => {
+                  const nodes: React.JSX.Element[] = [];
+                  const traverse = (n: LayoutNode) => {
+                    nodes.push(renderNode(n));
+                    n.children.forEach(traverse);
+                  };
+                  traverse(root);
+                  return nodes;
+                })}
+              </>
+            )}
           </g>
         </svg>
       </div>
