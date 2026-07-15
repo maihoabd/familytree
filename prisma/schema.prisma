@@ -1,0 +1,80 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+model Family {
+  id                 String   @id @default(cuid())
+  name               String   // Tên dòng họ
+  origin             String?  // Quê quán
+  foundingAncestorId String?  // ID của thủy tổ
+  description        String?  // Lược sử dòng họ
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
+
+model Member {
+  id              String    @id @default(cuid())
+  fullName        String    // Họ và tên
+  gender          String    // "MALE" | "FEMALE" | "OTHER"
+  generation      Int       // Đời thứ mấy
+  birthDate       DateTime? // Ngày sinh dương lịch
+  birthDateLunar  String?   // Ngày sinh âm lịch (Ví dụ: "15/07/1950")
+  deathDate       DateTime? // Ngày mất dương lịch
+  deathDateLunar  String?   // Ngày mất âm lịch (Ví dụ: "12/03/2010")
+  isDead          Boolean   @default(false)
+  biography       String?   // Tiểu sử ngắn
+  photoUrl        String?   // Ảnh chân dung
+  placeOfBirth    String?   // Nơi sinh
+  placeOfBurial   String?   // Nơi an táng
+  branch          String?   // Chi/Nhánh
+
+  // Parents
+  fatherId        String?
+  father          Member?   @relation("FatherToChildren", fields: [fatherId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  fatherChildren  Member[]  @relation("FatherToChildren")
+
+  motherId        String?
+  mother          Member?   @relation("MotherToChildren", fields: [motherId], references: [id], onDelete: Restrict, onUpdate: Cascade)
+  motherChildren  Member[]  @relation("MotherToChildren")
+
+  // Marriages
+  marriagesAsMember1 Marriage[] @relation("Member1Marriages")
+  marriagesAsMember2 Marriage[] @relation("Member2Marriages")
+
+  // Anniversary
+  deathAnniversary DeathAnniversary?
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+}
+
+model Marriage {
+  id          String    @id @default(cuid())
+  member1Id   String
+  member2Id   String
+  member1     Member    @relation("Member1Marriages", fields: [member1Id], references: [id], onDelete: Cascade)
+  member2     Member    @relation("Member2Marriages", fields: [member2Id], references: [id], onDelete: Cascade)
+  marriedAt   DateTime? // Ngày kết hôn
+  divorcedAt  DateTime? // Ngày ly hôn
+  notes       String?   // Ghi chú (Ví dụ: "Vợ cả", "Vợ hai")
+
+  @@unique([member1Id, member2Id])
+}
+
+model DeathAnniversary {
+  id                 String   @id @default(cuid())
+  memberId           String   @unique
+  member             Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  lunarDay           Int      // Ngày âm lịch (1-30)
+  lunarMonth         Int      // Tháng âm lịch (1-12)
+  isLeapMonth        Boolean  @default(false)
+  note               String?  // Địa điểm tổ chức cúng giỗ, người phụ trách
+  reminderDaysBefore Int      @default(3)     // Nhắc nhở trước bao nhiêu ngày
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+}
