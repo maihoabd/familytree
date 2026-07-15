@@ -200,7 +200,11 @@ export default function TreeViewer({ initialMembers }: TreeViewerProps) {
 
     const spouse = findSpouse(member.id);
     if (spouse) {
-      processed.add(spouse.id);
+      // Chỉ đánh dấu spouse đã xử lý nếu spouse không có bố mẹ ruột trong DB.
+      // Nếu spouse có bố mẹ ruột, chúng ta cho phép họ được dựng dưới tư cách con ruột ở nhánh cây của bố mẹ đẻ họ.
+      if (!spouse.fatherId && !spouse.motherId) {
+        processed.add(spouse.id);
+      }
     }
 
     const children = getChildren(member.id, spouse?.id);
