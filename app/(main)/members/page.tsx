@@ -1,10 +1,16 @@
 import { prisma } from "@/lib/prisma";
 import MembersListClient from "@/components/MembersListClient";
 import { Users } from "lucide-react";
+import { cookies } from "next/headers";
+import { checkAdminSession } from "@/lib/auth";
 
 export const revalidate = 0; // Đảm bảo luôn lấy danh sách mới nhất
 
 export default async function MembersPage() {
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get("admin_session")?.value;
+  const isAdmin = checkAdminSession(sessionToken);
+
   // Lấy toàn bộ danh sách thành viên sắp xếp theo đời và họ tên
   const members = await prisma.member.findMany({
     orderBy: [
@@ -23,13 +29,13 @@ export default async function MembersPage() {
             Danh Sách Thành Viên Dòng Họ
           </h1>
           <p className="text-sm text-stone-500 mt-1">
-            Tra cứu thông tin, tìm kiếm, lọc theo chi nhánh và thế hệ đời dòng họ Nguyễn Hữu.
+            Tra cứu thông tin, tìm kiếm, lọc theo chi nhánh và thế hệ đời dòng họ Phạm Hữu.
           </p>
         </div>
       </div>
 
       {/* Component danh sách có bộ lọc tìm kiếm */}
-      <MembersListClient initialMembers={members} />
+      <MembersListClient initialMembers={members} isAdmin={isAdmin} />
     </div>
   );
 }

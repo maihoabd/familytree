@@ -23,9 +23,10 @@ interface Member {
 
 interface MembersListClientProps {
   initialMembers: Member[];
+  isAdmin?: boolean;
 }
 
-export default function MembersListClient({ initialMembers }: MembersListClientProps) {
+export default function MembersListClient({ initialMembers, isAdmin = false }: MembersListClientProps) {
   const [search, setSearch] = useState("");
   const [selectedGeneration, setSelectedGeneration] = useState<string>("all");
   const [selectedBranch, setSelectedBranch] = useState<string>("all");
@@ -76,13 +77,15 @@ export default function MembersListClient({ initialMembers }: MembersListClientP
             />
           </div>
 
-          <Link
-            href="/members/new"
-            className="bg-[#8c1d1d] hover:bg-[#701515] text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md transition-colors flex items-center justify-center space-x-2 self-start md:self-auto"
-          >
-            <UserPlus className="h-4.5 w-4.5" />
-            <span>Thêm Thành Viên Mới</span>
-          </Link>
+          {isAdmin && (
+            <Link
+              href="/members/new"
+              className="bg-[#8c1d1d] hover:bg-[#701515] text-white px-5 py-2.5 rounded-xl text-sm font-bold shadow-md transition-colors flex items-center justify-center space-x-2 self-start md:self-auto"
+            >
+              <UserPlus className="h-4.5 w-4.5" />
+              <span>Thêm Thành Viên Mới</span>
+            </Link>
+          )}
         </div>
 
         {/* Bộ lọc nâng cao */}

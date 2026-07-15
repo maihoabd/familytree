@@ -13,8 +13,8 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Gia Phả Nguyễn Tộc - Cây Gia Đình & Ngày Giỗ",
-  description: "Trang thông tin gia phả, cây phả hệ trực quan và nhắc lịch ngày giỗ (kỵ nhật) dòng họ Nguyễn Hữu",
+  title: "Phạm Đăng Hải Family Tree - Cây Gia Đình & Ngày Giỗ",
+  description: "Trang thông tin gia phả, cây phả hệ trực quan và nhắc lịch ngày giỗ (kỵ nhật) dòng họ Phạm Đăng Hải",
 };
 
 export default function RootLayout({

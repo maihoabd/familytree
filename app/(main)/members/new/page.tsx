@@ -1,3 +1,6 @@
+import { cookies } from "next/headers";
+import { checkAdminSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import MemberForm from "@/components/MemberForm";
 import { UserPlus } from "lucide-react";
@@ -5,6 +8,12 @@ import { UserPlus } from "lucide-react";
 export const revalidate = 0;
 
 export default async function NewMemberPage() {
+  // Kiểm tra quyền Admin
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get("admin_session")?.value;
+  if (!checkAdminSession(sessionToken)) {
+    redirect("/login?callbackUrl=/members/new");
+  }
   // Lấy toàn bộ thành viên phục vụ liên kết cha mẹ, vợ chồng
   const allMembers = await prisma.member.findMany({
     select: {

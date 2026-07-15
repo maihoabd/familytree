@@ -18,8 +18,8 @@ export const revalidate = 0; // Luôn lấy dữ liệu mới nhất
 export default async function HomePage() {
   // 1. Lấy thông tin dòng họ
   const family = await prisma.family.findFirst();
-  const familyName = family?.name || "Nguyễn Tộc";
-  const familyOrigin = family?.origin || "Hành Thiện, Xuân Trường, Nam Định";
+  const familyName = family?.name || "Phạm Đăng Hải Family Tree";
+  const familyOrigin = family?.origin || "Thôn Thạch Đê, xã Hùng Việt, tỉnh Phú Thọ";
   const familyDesc = family?.description || "Lịch sử dòng họ đang được ghi chép và cập nhật.";
 
   // 2. Lấy toàn bộ thành viên để làm thống kê

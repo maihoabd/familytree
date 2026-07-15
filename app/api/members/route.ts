@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { cookies } from "next/headers";
+import { checkAdminSession } from "@/lib/auth";
 
 // GET: Lấy toàn bộ danh sách thành viên trong dòng họ
 export async function GET() {
@@ -41,6 +43,16 @@ export async function GET() {
 // POST: Tạo thành viên mới
 export async function POST(request: Request) {
   try {
+    // Kiểm tra quyền Admin
+    const cookieStore = await cookies();
+    const sessionToken = cookieStore.get("admin_session")?.value;
+    if (!checkAdminSession(sessionToken)) {
+      return NextResponse.json(
+        { error: "Bạn không có quyền thực hiện chức năng này. Vui lòng đăng nhập Admin." },
+        { status: 403 }
+      );
+    }
+
     const body = await request.json();
     const {
       fullName,

@@ -1,5 +1,7 @@
 import { NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { cookies } from "next/headers";
+import { checkAdminSession } from "@/lib/auth";
 
 // GET: Lấy chi tiết thông tin một thành viên
 export async function GET(request: Request, { params }: { params: Promise<{ id: string }> }) {
@@ -41,6 +43,16 @@ export async function GET(request: Request, { params }: { params: Promise<{ id: 
 // PUT: Cập nhật thông tin thành viên
 export async function PUT(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Kiểm tra quyền Admin
+    const cookieStore = await cookies();
+    const sessionToken = cookieStore.get("admin_session")?.value;
+    if (!checkAdminSession(sessionToken)) {
+      return NextResponse.json(
+        { error: "Bạn không có quyền thực hiện chức năng này. Vui lòng đăng nhập Admin." },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     const body = await request.json();
     const {
@@ -170,6 +182,16 @@ export async function PUT(request: Request, { params }: { params: Promise<{ id: 
 // DELETE: Xóa thành viên
 export async function DELETE(request: Request, { params }: { params: Promise<{ id: string }> }) {
   try {
+    // Kiểm tra quyền Admin
+    const cookieStore = await cookies();
+    const sessionToken = cookieStore.get("admin_session")?.value;
+    if (!checkAdminSession(sessionToken)) {
+      return NextResponse.json(
+        { error: "Bạn không có quyền thực hiện chức năng này. Vui lòng đăng nhập Admin." },
+        { status: 403 }
+      );
+    }
+
     const { id } = await params;
     
     // Kiểm tra xem thành viên này có con hay không trước khi xóa

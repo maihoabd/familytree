@@ -3,6 +3,8 @@ import { notFound } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import { formatLunarDate } from "@/lib/lunar";
 import MemberActions from "@/components/MemberActions";
+import { cookies } from "next/headers";
+import { checkAdminSession } from "@/lib/auth";
 import { 
   User, 
   Calendar, 
@@ -19,6 +21,10 @@ export const revalidate = 0;
 
 export default async function MemberDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get("admin_session")?.value;
+  const isAdmin = checkAdminSession(sessionToken);
 
   // 1. Lấy thông tin thành viên cùng bố mẹ và ngày giỗ
   const member = await prisma.member.findUnique({
@@ -128,9 +134,11 @@ export default async function MemberDetailPage({ params }: { params: Promise<{ i
             </div>
 
             {/* Bộ điều khiển hành động chỉnh sửa/xóa */}
-            <div className="border-t border-stone-100 pt-5 mt-5 w-full">
-              <MemberActions memberId={member.id} memberName={member.fullName} />
-            </div>
+            {isAdmin && (
+              <div className="border-t border-stone-100 pt-5 mt-5 w-full">
+                <MemberActions memberId={member.id} memberName={member.fullName} />
+              </div>
+            )}
           </div>
         </div>
 

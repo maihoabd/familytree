@@ -1,12 +1,21 @@
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { prisma } from "@/lib/prisma";
 import MemberForm from "@/components/MemberForm";
 import { Edit } from "lucide-react";
+import { cookies } from "next/headers";
+import { checkAdminSession } from "@/lib/auth";
 
 export const revalidate = 0;
 
 export default async function EditMemberPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params;
+
+  // Kiểm tra quyền Admin
+  const cookieStore = await cookies();
+  const sessionToken = cookieStore.get("admin_session")?.value;
+  if (!checkAdminSession(sessionToken)) {
+    redirect(`/login?callbackUrl=/members/${id}/edit`);
+  }
 
   // 1. Lấy thông tin thành viên muốn sửa kèm ngày giỗ
   const member = await prisma.member.findUnique({

@@ -21,7 +21,7 @@ export default function MainLayout({
           <div className="flex flex-col md:flex-row items-center justify-between gap-4">
             <div className="flex flex-col items-center md:items-start">
               <h2 className="font-serif text-lg font-bold text-stone-200 tracking-wider">
-                GIA PHẢ NGUYỄN TỘC
+                PHẠM ĐĂNG HẢI FAMILY TREE
               </h2>
               <p className="text-xs text-stone-500 mt-1">
                 Kính cẩn ghi chép và lưu truyền lịch sử thế hệ dòng họ
@@ -30,10 +30,10 @@ export default function MainLayout({
             
             <div className="flex flex-col items-center md:items-end">
               <p className="text-xs text-stone-400 text-center md:text-right">
-                © {new Date().getFullYear()} Nguyễn Hữu Gia Tộc. Tất cả các quyền được bảo lưu.
+                © {new Date().getFullYear()} Phạm Đăng Hải Family Tree. Tất cả các quyền được bảo lưu.
               </p>
               <p className="text-[10px] text-stone-600 mt-1">
-                Địa bàn thủy tổ: Hành Thiện, Xuân Trường, Nam Định
+                Địa bàn thủy tổ: Thôn Thạch Đê, xã Hùng Việt, tỉnh Phú Thọ
               </p>
             </div>
           </div>

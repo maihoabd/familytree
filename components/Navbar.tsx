@@ -1,13 +1,40 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
-import { usePathname } from "next/navigation";
-import { Menu, X, Home, GitBranch, Users, Calendar, CalendarDays, Award } from "lucide-react";
+import { usePathname, useRouter } from "next/navigation";
+import { Menu, X, Home, GitBranch, Users, Calendar, CalendarDays, Award, LogIn, LogOut } from "lucide-react";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const router = useRouter();
   const [isOpen, setIsOpen] = useState(false);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+
+  useEffect(() => {
+    const checkSession = async () => {
+      try {
+        const res = await fetch("/api/session");
+        const data = await res.json();
+        setIsLoggedIn(!!data.loggedIn);
+      } catch (error) {
+        setIsLoggedIn(false);
+      }
+    };
+    checkSession();
+  }, [pathname]);
+
+  const handleLogout = async () => {
+    try {
+      await fetch("/api/logout", { method: "POST" });
+      setIsLoggedIn(false);
+      setIsOpen(false);
+      router.push("/");
+      router.refresh();
+    } catch (error) {
+      console.error("Lỗi đăng xuất:", error);
+    }
+  };
 
   const navItems = [
     { name: "Trang Chủ", href: "/", icon: Home },
@@ -33,11 +60,11 @@ export default function Navbar() {
             <Link href="/" className="flex items-center space-x-2 group">
               <Award className="h-7 w-7 text-[#ffd700] group-hover:rotate-12 transition-transform duration-300" />
               <div className="flex flex-col">
-                <span className="font-serif text-lg sm:text-xl font-bold tracking-wide text-[#ffd700]">
-                  NGUYỄN TỘC
+                <span className="font-serif text-base sm:text-lg font-bold tracking-wide text-[#ffd700]">
+                  PHẠM ĐĂNG HẢI
                 </span>
                 <span className="text-[10px] text-[#ffd700]/80 tracking-wider">
-                  Gia phả & Kỵ nhật
+                  Family Tree
                 </span>
               </div>
             </Link>
@@ -63,6 +90,25 @@ export default function Navbar() {
                 </Link>
               );
             })}
+
+            {/* Nút Đăng nhập / Đăng xuất Admin */}
+            {isLoggedIn ? (
+              <button
+                onClick={handleLogout}
+                className="flex items-center space-x-1.5 px-3 lg:px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 text-stone-200 hover:bg-white/10 hover:text-red-300 cursor-pointer"
+              >
+                <LogOut className="h-4 w-4" />
+                <span>Đăng xuất</span>
+              </button>
+            ) : (
+              <Link
+                href="/login"
+                className="flex items-center space-x-1.5 px-3 lg:px-4 py-2 rounded-lg text-sm font-medium transition-all duration-300 text-stone-300 hover:bg-white/10 hover:text-[#ffd700]"
+              >
+                <LogIn className="h-4 w-4" />
+                <span>Quản trị</span>
+              </Link>
+            )}
           </div>
 
           {/* Mobile Menu Button */}
@@ -108,6 +154,26 @@ export default function Navbar() {
               </Link>
             );
           })}
+
+          {/* Nút Đăng nhập / Đăng xuất trên Mobile */}
+          {isLoggedIn ? (
+            <button
+              onClick={handleLogout}
+              className="w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-base font-medium transition-all text-stone-200 hover:bg-white/10 hover:text-red-300 cursor-pointer text-left"
+            >
+              <LogOut className="h-5 w-5" />
+              <span>Đăng xuất</span>
+            </button>
+          ) : (
+            <Link
+              href="/login"
+              onClick={() => setIsOpen(false)}
+              className="w-full flex items-center space-x-3 px-3 py-3 rounded-lg text-base font-medium transition-all text-stone-300 hover:bg-white/10 hover:text-[#ffd700]"
+            >
+              <LogIn className="h-5 w-5" />
+              <span>Đăng nhập Admin</span>
+            </Link>
+          )}
         </div>
       </div>
     </nav>

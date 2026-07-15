@@ -46,7 +46,7 @@ export default async function TreePage() {
             Sơ Đồ Phả Hệ Trực Quan
           </h1>
           <p className="text-sm text-stone-500 mt-1">
-            Hệ thống cây gia tộc Nguyễn Hữu. Giữ chuột trái để kéo (Pan), cuộn chuột để thu phóng (Zoom), click vào thành viên để xem tiểu sử chi tiết.
+            Hệ thống cây gia tộc Phạm Hữu. Giữ chuột trái để kéo (Pan), cuộn chuột để thu phóng (Zoom), click vào thành viên để xem tiểu sử chi tiết.
           </p>
         </div>
       </div>
