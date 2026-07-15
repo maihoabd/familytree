@@ -87,6 +87,22 @@ export default function TreeViewer({ initialMembers }: TreeViewerProps) {
     setMembers(initialMembers);
   }, [initialMembers]);
 
+  // Tìm vợ/chồng của 1 thành viên
+  const findSpouse = (memberId: string): Member | undefined => {
+    const member = members.find(m => m.id === memberId);
+    if (!member) return undefined;
+
+    // Tìm trong danh sách marriages
+    const spouseId1 = member.marriagesAsMember1?.[0]?.member2.id;
+    const spouseId2 = member.marriagesAsMember2?.[0]?.member1.id;
+    
+    const spouseId = spouseId1 || spouseId2;
+    if (spouseId) {
+      return members.find(m => m.id === spouseId);
+    }
+    return undefined;
+  };
+
   // Tập hợp các ID thành viên thuộc nhóm tập trung (Ancestors, Spouses, Descendants)
   const focusedMemberIds = React.useMemo(() => {
     if (!selectedMember) return new Set<string>();
@@ -166,21 +182,6 @@ export default function TreeViewer({ initialMembers }: TreeViewerProps) {
     }
   }, [selectedMember]);
 
-  // Tìm vợ/chồng của 1 thành viên
-  const findSpouse = (memberId: string): Member | undefined => {
-    const member = members.find(m => m.id === memberId);
-    if (!member) return undefined;
-
-    // Tìm trong danh sách marriages
-    const spouseId1 = member.marriagesAsMember1?.[0]?.member2.id;
-    const spouseId2 = member.marriagesAsMember2?.[0]?.member1.id;
-    
-    const spouseId = spouseId1 || spouseId2;
-    if (spouseId) {
-      return members.find(m => m.id === spouseId);
-    }
-    return undefined;
-  };
 
   // Trích xuất con cái của cặp đôi (hoặc cá nhân nếu không có vợ/chồng)
   const getChildren = (parentId: string, spouseId?: string): Member[] => {
