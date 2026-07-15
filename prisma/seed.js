@@ -13,7 +13,7 @@ async function main() {
     data: {
       name: "Phạm Đăng Hải Family Tree",
       origin: "Thôn Thạch Đê, xã Hùng Việt, tỉnh Phú Thọ",
-      description: "Hệ thống quản lý phả hệ dòng họ Phạm Đăng Hải khởi nguồn từ cụ tổ Phạm Văn An định cư tại thôn Thạch Đê, xã Hùng Việt, tỉnh Phú Thọ.",
+      description: "Cây gia đình của Phạm Đăng Hải",
     },
   });
 

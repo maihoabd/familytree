@@ -74,8 +74,8 @@ export default async function HomePage() {
           </div>
           
           <h1 className="font-serif text-3xl sm:text-5xl font-bold tracking-wide leading-tight">
-            Chào Mừng Đến Với Website <br className="hidden sm:inline" />
-            <span className="text-[#ffd700]">Gia Phả {familyName}</span>
+            Chào Mừng Đến Với <br className="hidden sm:inline" />
+            <span className="text-[#ffd700]">Phạm Đăng Hải's Family Tree</span>
           </h1>
           
           <p className="text-gray-200 text-sm sm:text-base leading-relaxed font-light">
