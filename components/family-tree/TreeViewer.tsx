@@ -87,6 +87,85 @@ export default function TreeViewer({ initialMembers }: TreeViewerProps) {
     setMembers(initialMembers);
   }, [initialMembers]);
 
+  // Tập hợp các ID thành viên thuộc nhóm tập trung (Ancestors, Spouses, Descendants)
+  const focusedMemberIds = React.useMemo(() => {
+    if (!selectedMember) return new Set<string>();
+    const ids = new Set<string>();
+    ids.add(selectedMember.id);
+
+    // Thêm vợ/chồng của người được chọn
+    const spouse = findSpouse(selectedMember.id);
+    if (spouse) ids.add(spouse.id);
+
+    // Hàm đệ quy lấy toàn bộ tổ tiên (cha, mẹ)
+    const getAncestors = (id: string) => {
+      const m = members.find(x => x.id === id);
+      if (!m) return;
+      if (m.fatherId) {
+        ids.add(m.fatherId);
+        getAncestors(m.fatherId);
+      }
+      if (m.motherId) {
+        ids.add(m.motherId);
+        getAncestors(m.motherId);
+      }
+    };
+    getAncestors(selectedMember.id);
+
+    // Hàm đệ quy lấy toàn bộ con cháu
+    const getDescendants = (id: string) => {
+      const children = members.filter(x => x.fatherId === id || x.motherId === id);
+      for (const child of children) {
+        ids.add(child.id);
+        getDescendants(child.id);
+      }
+    };
+    getDescendants(selectedMember.id);
+
+    return ids;
+  }, [selectedMember, members]);
+
+  // Tự động căn giữa màn hình mượt mà vào thành viên được chọn
+  useEffect(() => {
+    if (!selectedMember || !containerRef.current) return;
+
+    let targetX = 0;
+    let targetY = 0;
+    let found = false;
+
+    // Quét cây để tìm tọa độ (x, y) của thành viên được chọn
+    const searchNode = (node: LayoutNode) => {
+      if (found) return;
+      if (node.member.id === selectedMember.id || node.spouse?.id === selectedMember.id) {
+        targetX = node.x;
+        // Lệch x một chút nếu là người phối ngẫu (vợ/chồng) để căn chính xác vào card click
+        if (node.spouse?.id === selectedMember.id) {
+          targetX = node.x + cardWidth / 2 + coupleGap / 2;
+        } else if (node.spouse) {
+          targetX = node.x - cardWidth / 2 - coupleGap / 2;
+        }
+        targetY = node.y;
+        found = true;
+        return;
+      }
+      node.children.forEach(searchNode);
+    };
+
+    layoutRoots.forEach(searchNode);
+
+    if (found) {
+      const containerWidth = containerRef.current.clientWidth;
+      const containerHeight = containerRef.current.clientHeight;
+
+      const newScale = Math.max(0.95, scale); // Phóng to nhẹ nếu góc nhìn đang quá nhỏ
+      setScale(newScale);
+      setTranslate({
+        x: containerWidth / 2 - targetX * newScale,
+        y: containerHeight / 2 - targetY * newScale,
+      });
+    }
+  }, [selectedMember]);
+
   // Tìm vợ/chồng của 1 thành viên
   const findSpouse = (memberId: string): Member | undefined => {
     const member = members.find(m => m.id === memberId);
@@ -344,6 +423,12 @@ export default function TreeViewer({ initialMembers }: TreeViewerProps) {
       const parentY = node.y + cardHeight / 2;
       const midY = parentY + (verticalGap - cardHeight) / 2;
 
+      // Kiểm tra xem nút cha mẹ này có thuộc nhóm tập trung không
+      const isParentFocused = 
+        !selectedMember || 
+        focusedMemberIds.has(node.member.id) || 
+        (node.spouse !== undefined && focusedMemberIds.has(node.spouse.id));
+
       lines.push(
         <line
           key={`vertical-parent-${node.id}`}
@@ -353,7 +438,8 @@ export default function TreeViewer({ initialMembers }: TreeViewerProps) {
           y2={midY}
           stroke="#8c1d1d"
           strokeWidth="2.5"
-          strokeDasharray="0"
+          className="transition-opacity duration-500"
+          style={{ opacity: isParentFocused ? 1 : 0.15 }}
         />
       );
 
@@ -369,11 +455,21 @@ export default function TreeViewer({ initialMembers }: TreeViewerProps) {
           y2={midY}
           stroke="#8c1d1d"
           strokeWidth="2.5"
+          className="transition-opacity duration-500"
+          style={{ opacity: isParentFocused ? 1 : 0.15 }}
         />
       );
 
       // 3. Vẽ đường dọc đi xuống từng con
       node.children.forEach(child => {
+        // Kiểm tra xem nút con này có thuộc nhóm tập trung không
+        const isChildFocused = 
+          !selectedMember || 
+          focusedMemberIds.has(child.member.id) || 
+          (child.spouse !== undefined && focusedMemberIds.has(child.spouse.id));
+
+        const lineOpacity = isParentFocused && isChildFocused ? 1 : 0.15;
+
         lines.push(
           <line
             key={`vertical-child-${child.id}`}
@@ -383,6 +479,8 @@ export default function TreeViewer({ initialMembers }: TreeViewerProps) {
             y2={child.y - cardHeight / 2}
             stroke="#8c1d1d"
             strokeWidth="2.5"
+            className="transition-opacity duration-500"
+            style={{ opacity: lineOpacity }}
           />
         );
         lines.push(...renderConnections(child));
@@ -479,64 +577,77 @@ export default function TreeViewer({ initialMembers }: TreeViewerProps) {
 
     const bgClass = member.isDead ? "fill-stone-100/90" : "fill-white";
     const nameColor = member.isDead ? "fill-stone-500" : "fill-stone-900";
+    const isFocused = !selectedMember || focusedMemberIds.has(member.id);
 
     return (
       <g 
-        className="cursor-pointer transition-all duration-300 hover:scale-105"
+        className="cursor-pointer"
         transform={`translate(${x - cardWidth / 2}, ${y - cardHeight / 2})`}
         onClick={() => setSelectedMember(member)}
       >
-        {/* Nền thẻ */}
-        <rect
-          width={cardWidth}
-          height={cardHeight}
-          rx="10"
-          className={`${bgClass} ${borderClass} shadow-md`}
-        />
-
-        {/* Thanh tiêu đề nhỏ phân biệt chi/giới tính */}
-        <path
-          d={`M 2,2 L ${cardWidth - 2},2 L ${cardWidth - 2},8 L 2,8 Z`}
-          fill={isMale ? "#0284c7" : "#db2777"}
-        />
-
-        {/* Tên thành viên */}
-        <text
-          x={cardWidth / 2}
-          y="32"
-          textAnchor="middle"
-          className={`${nameColor} font-serif font-bold text-xs`}
+        <g
+          style={{
+            opacity: isFocused ? 1 : 0.22,
+            transform: isFocused ? "scale(1)" : "scale(0.85)",
+            filter: isFocused ? "none" : "grayscale(100%) blur(0.5px)",
+            transformBox: "fill-box",
+            transformOrigin: "center",
+            transition: "all 0.5s cubic-bezier(0.16, 1, 0.3, 1)"
+          }}
+          className="hover:scale-105 transition-transform duration-300"
         >
-          {member.fullName}
-        </text>
+          {/* Nền thẻ */}
+          <rect
+            width={cardWidth}
+            height={cardHeight}
+            rx="10"
+            className={`${bgClass} ${borderClass} shadow-md`}
+          />
 
-        {/* Đời thứ mấy */}
-        <text
-          x={cardWidth / 2}
-          y="48"
-          textAnchor="middle"
-          className="fill-stone-400 text-[10px]"
-        >
-          Đời thứ {member.generation}
-        </text>
+          {/* Thanh tiêu đề nhỏ phân biệt chi/giới tính */}
+          <path
+            d={`M 2,2 L ${cardWidth - 2},2 L ${cardWidth - 2},8 L 2,8 Z`}
+            fill={isMale ? "#0284c7" : "#db2777"}
+          />
 
-        {/* Ngày sinh - mất tóm tắt */}
-        <text
-          x={cardWidth / 2}
-          y="64"
-          textAnchor="middle"
-          className="fill-stone-500 text-[9px] font-mono"
-        >
-          {formatLifespan(member)}
-        </text>
+          {/* Tên thành viên */}
+          <text
+            x={cardWidth / 2}
+            y="32"
+            textAnchor="middle"
+            className={`${nameColor} font-serif font-bold text-xs`}
+          >
+            {member.fullName}
+          </text>
 
-        {/* Huy hiệu ghi chú nếu đã mất */}
-        {member.isDead && (
-          <g transform={`translate(${cardWidth - 22}, ${cardHeight - 22})`}>
-            <circle cx="8" cy="8" r="7" fill="#78716c" />
-            <text x="8" y="11" textAnchor="middle" fill="#ffffff" className="text-[8px] font-bold">✝</text>
-          </g>
-        )}
+          {/* Đời thứ mấy */}
+          <text
+            x={cardWidth / 2}
+            y="48"
+            textAnchor="middle"
+            className="fill-stone-400 text-[10px]"
+          >
+            Đời thứ {member.generation}
+          </text>
+
+          {/* Ngày sinh - mất tóm tắt */}
+          <text
+            x={cardWidth / 2}
+            y="64"
+            textAnchor="middle"
+            className="fill-stone-500 text-[9px] font-mono"
+          >
+            {formatLifespan(member)}
+          </text>
+
+          {/* Huy hiệu ghi chú nếu đã mất */}
+          {member.isDead && (
+            <g transform={`translate(${cardWidth - 22}, ${cardHeight - 22})`}>
+              <circle cx="8" cy="8" r="7" fill="#78716c" />
+              <text x="8" y="11" textAnchor="middle" fill="#ffffff" className="text-[8px] font-bold">✝</text>
+            </g>
+          )}
+        </g>
       </g>
     );
   };
@@ -581,6 +692,16 @@ export default function TreeViewer({ initialMembers }: TreeViewerProps) {
         >
           <Maximize2 className="h-4.5 w-4.5" />
         </button>
+
+        {selectedMember && (
+          <button 
+            onClick={() => setSelectedMember(null)}
+            className="bg-[#8c1d1d]/90 text-[#ffd700] px-4 py-2 rounded-xl text-xs font-bold border border-[#ffd700]/30 shadow-lg hover:bg-[#701515] transition-all backdrop-blur-sm flex items-center space-x-1.5 cursor-pointer animate-in fade-in zoom-in duration-300"
+            title="Hủy tập trung và hiển thị lại toàn bộ gia tộc"
+          >
+            <span>Hiện toàn bộ cây</span>
+          </button>
+        )}
       </div>
 
       {/* 2. Bộ điều khiển Zoom góc phải */}
@@ -648,8 +769,12 @@ export default function TreeViewer({ initialMembers }: TreeViewerProps) {
           <rect width="100%" height="100%" fill="url(#grid)" />
 
           <g 
-            style={{ pointerEvents: "all" }}
-            transform={`translate(${translate.x}, ${translate.y}) scale(${scale})`}
+            style={{ 
+              pointerEvents: "all",
+              transform: `translate(${translate.x}px, ${translate.y}px) scale(${scale})`,
+              transition: isDragging ? "none" : "transform 0.5s cubic-bezier(0.16, 1, 0.3, 1)",
+              transformOrigin: "0 0"
+            }}
           >
             {/* 1. Vẽ các đường nối trước (ở dưới) */}
             {layoutRoots.map(root => renderConnections(root))}
